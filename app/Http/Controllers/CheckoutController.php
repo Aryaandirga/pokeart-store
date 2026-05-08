@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\Address;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Services\PosApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -18,7 +19,7 @@ use Midtrans\Notification;
 
 class CheckoutController extends Controller
 {
-    public function __construct()
+    public function __construct(private PosApiService $posApi)
     {
         Config::$serverKey    = config('midtrans.server_key');
         Config::$isProduction = config('midtrans.is_production');
@@ -275,5 +276,16 @@ class CheckoutController extends Controller
                 'subtotal'   => $item->subtotal,
             ]);
         }
+
+        // Kirim ke POS API — catat transaksi & kurangi stok
+        $this->posApi->createOrder([
+            'grand_total'   => $order->total,
+            'customer_name' => auth()->user()?->name ?? 'Guest',
+            'items'         => $order->items->map(fn($item) => [
+                'id'    => $item->product_id,
+                'qty'   => $item->quantity,
+                'price' => $item->price,
+            ])->toArray(),
+        ]);
     }
 }
