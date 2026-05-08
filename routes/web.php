@@ -28,6 +28,14 @@ Route::get('/api/pokewallet/images/{id}', [PokewalletController::class, 'image']
 Route::post('/checkout/callback', [CheckoutController::class, 'callback'])->name('checkout.callback');
 Route::post('/midtrans/callback', [CheckoutController::class, 'callback'])->name('midtrans.callback');
 
+// ── Debug route (hapus setelah fix) ──────────────────────────────────────────
+Route::get('/debug-wishlist', function() {
+    return response()->json([
+        'routes' => collect(\Route::getRoutes())->filter(fn($r) => str_contains($r->uri(), 'wishlist'))->map(fn($r) => ['uri' => $r->uri(), 'methods' => $r->methods()])->values(),
+        'auth' => auth()->check() ? auth()->user()->email : 'not logged in',
+    ]);
+});
+
 // ── Wishlist (auth required) — standalone ─────────────────────────────────────
 Route::get('/wishlist', [WishlistController::class, 'index'])->middleware('auth')->name('wishlist');
 Route::post('/wishlist/{productId}', [WishlistController::class, 'toggle'])->middleware('auth')->name('wishlist.toggle');
