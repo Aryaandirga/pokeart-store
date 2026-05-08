@@ -55,7 +55,7 @@ class CartController extends Controller
         // Validasi produk dari POS API
         $product = $this->posApi->getProductById($request->product_id);
         if (!$product) {
-            return back()->with('error', 'Produk tidak ditemukan.');
+            return response()->json(['error' => 'Produk tidak ditemukan di POS API. ID: ' . $request->product_id], 404);
         }
 
         $stock = $product['stock'] ?? 0;
