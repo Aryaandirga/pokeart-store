@@ -1,5 +1,6 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3'
+import axios from 'axios'
 import { ref, computed } from 'vue'
 import { imageUrl } from '@/composables/useImageUrl.js'
 
@@ -72,9 +73,7 @@ const wishlisted = computed(() => {
 })
 
 function toggleWishlist() {
-    router.post(`/wishlist/${props.product.id}`, {}, {
-        preserveScroll: true,
-    })
+    axios.post(`/wishlist/${props.product.id}`)
 }
 </script>
 <template>

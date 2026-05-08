@@ -1,5 +1,6 @@
 <script setup>
 import { Link, router } from '@inertiajs/vue3'
+import axios from 'axios'
 import { ref, watch, computed } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import { imageUrl } from '@/composables/useImageUrl.js'
@@ -60,8 +61,15 @@ function toggleWishlist(product) {
     } else {
         localWishlisted.value.add(product.id)
     }
-    router.post(`/wishlist/${product.id}`, {}, {
-        preserveScroll: true,
+    axios.post(`/wishlist/${product.id}`).then(() => {
+        // Props akan diupdate oleh Inertia shared props di request berikutnya
+    }).catch(() => {
+        // Rollback jika gagal
+        if (localWishlisted.value.has(product.id)) {
+            localWishlisted.value.delete(product.id)
+        } else {
+            localWishlisted.value.add(product.id)
+        }
     })
 }
 
