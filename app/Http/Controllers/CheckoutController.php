@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers;
 
@@ -29,20 +29,31 @@ class CheckoutController extends Controller
 
     public function index()
     {
-        $cart = Cart::where('user_id', auth()->id())
-            ->with(['items.product.category', 'items.product.images'])
-            ->firstOrFail();
+        $cart  = Cart::where('user_id', auth()->id())->firstOrFail();
+        $items = \App\Models\CartItem::where('cart_id', $cart->id)->get();
 
-        if ($cart->items->isEmpty()) {
-            return redirect()->route('cart.index')
-                ->with('error', 'Keranjang kamu kosong.');
+        if ($items->isEmpty()) {
+            return redirect()->route('cart.index')->with('error', 'Keranjang kamu kosong.');
         }
 
-        $subtotal  = $cart->items->sum(fn($i) => $i->product->price * $i->quantity);
+        // Ambil produk dari POS API
+        $allProducts = $this->posApi->getProducts(['per_page' => 100]);
+        $productsMap = collect($allProducts['data'] ?? [])->keyBy('id');
+
+        $cartItems = $items->map(function ($item) use ($productsMap) {
+            $product = $productsMap->get($item->product_id);
+            return [
+                'id'       => $item->id,
+                'quantity' => $item->quantity,
+                'product'  => $product ?? ['id' => $item->product_id, 'name' => 'Produk', 'price' => 0, 'image' => null],
+            ];
+        });
+
+        $subtotal  = $cartItems->sum(fn($i) => ($i['product']['price'] ?? 0) * $i['quantity']);
         $addresses = Address::where('user_id', auth()->id())->get();
 
         return Inertia::render('Checkout', [
-            'cart'      => $cart,
+            'cart'      => ['items' => $cartItems],
             'subtotal'  => $subtotal,
             'addresses' => $addresses,
             'clientKey' => config('midtrans.client_key'),
@@ -63,14 +74,18 @@ class CheckoutController extends Controller
             'notes'          => 'nullable|string|max:500',
         ]);
 
-        $cart = Cart::where('user_id', auth()->id())
-            ->with('items.product')
-            ->firstOrFail();
+        $cart  = Cart::where('user_id', auth()->id())->firstOrFail();
+        $items = \App\Models\CartItem::where('cart_id', $cart->id)->get();
 
-        if ($cart->items->isEmpty()) {
+        if ($items->isEmpty()) {
             return back()->with('error', 'Keranjang kosong.');
         }
 
+        // Ambil produk dari POS API
+        $allProducts = $this->posApi->getProducts(['per_page' => 100]);
+        $productsMap = collect($allProducts['data'] ?? [])->keyBy('id');
+
+        // Simpan alamat baru jika tidak pilih yang existing
         if (!$request->address_id) {
             $addressModel = Address::create([
                 'user_id'        => auth()->id(),
@@ -89,7 +104,10 @@ class CheckoutController extends Controller
             $addressId    = $request->address_id;
         }
 
-        $subtotal     = $cart->items->sum(fn($i) => $i->product->price * $i->quantity);
+        $subtotal = $items->sum(function ($item) use ($productsMap) {
+            $product = $productsMap->get($item->product_id);
+            return ($product['price'] ?? 0) * $item->quantity;
+        });
         $shippingCost = $request->shipping_cost;
         $total        = $subtotal + $shippingCost;
 
@@ -104,16 +122,16 @@ class CheckoutController extends Controller
             'notes'         => $request->notes,
         ]);
 
-        foreach ($cart->items as $item) {
+        foreach ($items as $item) {
+            $product = $productsMap->get($item->product_id);
+            $price   = $product['price'] ?? 0;
             OrderItem::create([
                 'order_id'   => $order->id,
                 'product_id' => $item->product_id,
                 'quantity'   => $item->quantity,
-                'price'      => $item->product->price,
-                'subtotal'   => $item->product->price * $item->quantity,
+                'price'      => $price,
+                'subtotal'   => $price * $item->quantity,
             ]);
-
-            $item->product->decrement('stock', $item->quantity);
         }
 
         Payment::create([
@@ -132,21 +150,24 @@ class CheckoutController extends Controller
             'customer_details' => [
                 'first_name' => $user->name,
                 'email'      => $user->email,
-                'phone'      => $addressModel->phone,
+                'phone'      => $addressModel->phone ?? '',
                 'shipping_address' => [
-                    'first_name'  => $addressModel->recipient_name,
-                    'address'     => $addressModel->address,
-                    'city'        => $addressModel->city,
-                    'postal_code' => $addressModel->postal_code,
-                    'phone'       => $addressModel->phone,
+                    'first_name'  => $addressModel->recipient_name ?? $user->name,
+                    'address'     => $addressModel->address ?? '',
+                    'city'        => $addressModel->city ?? '',
+                    'postal_code' => $addressModel->postal_code ?? '',
+                    'phone'       => $addressModel->phone ?? '',
                 ],
             ],
-            'item_details' => $cart->items->map(fn($item) => [
-                'id'       => $item->product_id,
-                'price'    => (int) $item->product->price,
-                'quantity' => $item->quantity,
-                'name'     => substr($item->product->name, 0, 50),
-            ])->toArray(),
+            'item_details' => $items->map(function ($item) use ($productsMap) {
+                $product = $productsMap->get($item->product_id);
+                return [
+                    'id'       => (string) $item->product_id,
+                    'price'    => (int) ($product['price'] ?? 0),
+                    'quantity' => $item->quantity,
+                    'name'     => substr($product['name'] ?? 'Produk', 0, 50),
+                ];
+            })->toArray(),
         ];
 
         if ($shippingCost > 0) {
@@ -160,7 +181,8 @@ class CheckoutController extends Controller
 
         $snapToken = Snap::getSnapToken($params);
 
-        $cart->items()->delete();
+        // Kosongkan cart
+        \App\Models\CartItem::where('cart_id', $cart->id)->delete();
 
         return response()->json([
             'snap_token'   => $snapToken,
