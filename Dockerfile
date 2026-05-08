@@ -18,7 +18,7 @@ WORKDIR /var/www
 COPY . .
 
 RUN composer install --no-dev --optimize-autoloader
-RUN npm install && npm run build
+RUN php artisan wayfinder:generate && npm install && npm run build
 RUN php artisan route:clear || true
 RUN php artisan config:clear || true
 
