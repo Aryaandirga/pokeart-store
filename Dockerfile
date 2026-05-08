@@ -30,7 +30,7 @@ RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache \
 # Copy nginx config
 COPY docker/nginx.conf /etc/nginx/sites-enabled/default
 
-# Copy start script
+# Copy start script v2
 COPY docker/start.sh /start.sh
 RUN chmod +x /start.sh
 
