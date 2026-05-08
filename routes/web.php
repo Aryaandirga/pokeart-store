@@ -32,10 +32,29 @@ Route::post('/midtrans/callback', [CheckoutController::class, 'callback'])->name
 Route::get('/debug-wishlist', function() {
     $posApi = app(\App\Services\PosApiService::class);
     $wishlistIds = \App\Models\Wishlist::where('user_id', auth()->id())->pluck('product_id')->toArray();
+
+    // Test insert wishlist
+    $testInsert = null;
+    try {
+        $testInsert = \DB::table('wishlists')->insert([
+            'user_id' => auth()->id(),
+            'product_id' => 999999,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        // Hapus test data
+        \DB::table('wishlists')->where('product_id', 999999)->delete();
+        $testInsert = 'insert OK';
+    } catch (\Exception $e) {
+        $testInsert = 'insert FAILED: ' . $e->getMessage();
+    }
+
     return response()->json([
         'auth' => auth()->check() ? auth()->user()->email : 'not logged in',
+        'user_id' => auth()->id(),
         'wishlist_ids' => $wishlistIds,
-        'product_test' => $wishlistIds ? $posApi->getProductById($wishlistIds[0]) : null,
+        'wishlist_table_test' => $testInsert,
+        'total_wishlists_in_db' => \DB::table('wishlists')->count(),
     ]);
 });
 
