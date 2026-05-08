@@ -3,8 +3,8 @@
 # Run migrations
 php artisan migrate --force
 
-# Start PHP-FPM
-php-fpm -D
+# Start PHP-FPM sebagai foreground (bukan daemon)
+php-fpm -F &
 
-# Start Nginx
+# Start Nginx foreground
 nginx -g "daemon off;"
