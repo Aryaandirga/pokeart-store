@@ -23,10 +23,12 @@ php artisan route:list --path=wishlist 2>&1
 # php artisan route:cache
 
 php artisan migrate --force
+php artisan session:table 2>/dev/null || true
+php artisan migrate --force
 php artisan storage:link --force 2>/dev/null || true
 
 echo "=== Final route check ==="
-php artisan route:list --path=wishlist 2>&1
+php artisan route:list 2>&1 | grep -i wishlist || php artisan route:list --path=wishlist 2>&1
 
 # Scheduler background
 (while true; do php artisan schedule:run >> /dev/null 2>&1; sleep 60; done) &
