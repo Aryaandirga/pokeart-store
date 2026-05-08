@@ -27,9 +27,7 @@ class PosApiService
     {
         $response = $this->http()
             ->get("{$this->baseUrl}/api/products", $params);
-
         if ($response->failed()) return null;
-
         return $response->json();
     }
 
@@ -37,9 +35,23 @@ class PosApiService
     {
         $response = $this->http()
             ->get("{$this->baseUrl}/api/products/{$slug}");
-
         if ($response->failed()) return null;
+        return $response->json();
+    }
 
+    public function getCategories()
+    {
+        $response = $this->http()
+            ->get("{$this->baseUrl}/api/categories");
+        if ($response->failed()) return [];
+        return $response->json();
+    }
+
+    public function createOrder(array $data)
+    {
+        $response = $this->http()
+            ->post("{$this->baseUrl}/api/orders", $data);
+        if ($response->failed()) return null;
         return $response->json();
     }
 }

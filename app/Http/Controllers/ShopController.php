@@ -2,39 +2,27 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
-use App\Models\Category;
 use App\Models\Wishlist;
+use App\Services\PosApiService;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 
 class ShopController extends Controller
 {
+    public function __construct(private PosApiService $posApi) {}
+
     public function index(Request $request)
     {
-        $query = Product::with(['category', 'images'])
-            ->where('is_published', true)
-            ->where('is_active', true);
+        $params = array_filter([
+            'search'   => $request->search,
+            'category' => $request->category,
+            'sort'     => $request->sort,
+            'per_page' => 12,
+            'page'     => $request->page ?? 1,
+        ]);
 
-        if ($request->category) {
-            $query->where('category_id', $request->category);
-        }
-
-        if ($request->search) {
-            $query->where('name', 'ilike', '%' . $request->search . '%');
-        }
-
-        match($request->sort) {
-            'price_asc'  => $query->orderBy('price', 'asc'),
-            'price_desc' => $query->orderBy('price', 'desc'),
-            'name_asc'   => $query->orderBy('name', 'asc'),
-            default      => $query->latest(),
-        };
-
-        $products   = $query->paginate(12)->withQueryString();
-        $categories = Category::withCount(['products' => function($q) {
-            $q->where('is_published', true)->where('is_active', true);
-        }])->get();
+        $productsData = $this->posApi->getProducts($params);
+        $categories   = $this->posApi->getCategories();
 
         $wishlistedIds = [];
         if (auth()->check()) {
@@ -44,7 +32,7 @@ class ShopController extends Controller
         }
 
         return Inertia::render('Shop', [
-            'products'      => $products,
+            'products'      => $productsData,
             'categories'    => $categories,
             'filters'       => $request->only(['search', 'category', 'sort']),
             'wishlistedIds' => $wishlistedIds,
@@ -53,29 +41,25 @@ class ShopController extends Controller
 
     public function show($slug)
     {
-        $product = Product::with(['category', 'images'])
-            ->where('slug', $slug)
-            ->where('is_published', true)
-            ->where('is_active', true)
-            ->firstOrFail();
+        $product = $this->posApi->getProduct($slug);
 
-        $related = Product::with(['category', 'images'])
-            ->where('category_id', $product->category_id)
-            ->where('id', '!=', $product->id)
-            ->where('is_published', true)
-            ->take(10)
-            ->get();
+        if (!$product) abort(404);
+
+        $related = $this->posApi->getProducts([
+            'category' => $product['category']['slug'] ?? null,
+            'per_page' => 10,
+        ]);
 
         $isWishlisted = false;
         if (auth()->check()) {
             $isWishlisted = Wishlist::where('user_id', auth()->id())
-                ->where('product_id', $product->id)
+                ->where('product_id', $product['id'])
                 ->exists();
         }
 
         return Inertia::render('ShopDetail', [
-            'product'  => array_merge($product->toArray(), ['is_wishlisted' => $isWishlisted]),
-            'related'  => $related,
+            'product' => array_merge($product, ['is_wishlisted' => $isWishlisted]),
+            'related' => $related['data'] ?? [],
         ]);
     }
 }
