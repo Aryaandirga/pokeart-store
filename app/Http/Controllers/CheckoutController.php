@@ -28,37 +28,40 @@ class CheckoutController extends Controller
     }
 
     public function index()
-    {
-        $cart  = Cart::where('user_id', auth()->id())->firstOrFail();
-        $items = \App\Models\CartItem::where('cart_id', $cart->id)->get();
+{
+    $cart = Cart::where('user_id', auth()->id())
+        ->with(['items' => function($q) {
+            $q->whereHas('product', function($pq) {
+                $pq->where('is_active', true);
+            })->with(['product.category', 'product.images']);
+        }])
+        ->firstOrFail();
 
-        if ($items->isEmpty()) {
-            return redirect()->route('cart.index')->with('error', 'Keranjang kamu kosong.');
+    // ✅ Hapus cart item yang produknya sudah tidak ada/aktif
+    $cart->items->each(function($item) {
+        if (!$item->product) {
+            $item->delete();
         }
+    });
 
-        // Ambil produk dari POS API
-        $allProducts = $this->posApi->getProducts(['per_page' => 100]);
-        $productsMap = collect($allProducts['data'] ?? [])->keyBy('id');
+    // Refresh setelah cleanup
+    $cart->load(['items.product.category', 'items.product.images']);
 
-        $cartItems = $items->map(function ($item) use ($productsMap) {
-            $product = $productsMap->get($item->product_id);
-            return [
-                'id'       => $item->id,
-                'quantity' => $item->quantity,
-                'product'  => $product ?? ['id' => $item->product_id, 'name' => 'Produk', 'price' => 0, 'image' => null],
-            ];
-        });
-
-        $subtotal  = $cartItems->sum(fn($i) => ($i['product']['price'] ?? 0) * $i['quantity']);
-        $addresses = Address::where('user_id', auth()->id())->get();
-
-        return Inertia::render('Checkout', [
-            'cart'      => ['items' => $cartItems],
-            'subtotal'  => $subtotal,
-            'addresses' => $addresses,
-            'clientKey' => config('midtrans.client_key'),
-        ]);
+    if ($cart->items->isEmpty()) {
+        return redirect()->route('cart.index')
+            ->with('error', 'Keranjang kamu kosong.');
     }
+
+    $subtotal  = $cart->items->sum(fn($i) => $i->product->price * $i->quantity);
+    $addresses = Address::where('user_id', auth()->id())->get();
+
+    return Inertia::render('Checkout', [
+        'cart'      => $cart,
+        'subtotal'  => $subtotal,
+        'addresses' => $addresses,
+        'clientKey' => config('midtrans.client_key'),
+    ]);
+}
 
     public function process(Request $request)
     {
