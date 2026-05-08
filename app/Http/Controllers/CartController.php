@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Cart;
 use App\Models\CartItem;
-use App\Models\Product;
+use App\Services\PosApiService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class CartController extends Controller
 {
+    public function __construct(private PosApiService $posApi) {}
+
     private function getOrCreateCart()
     {
         return Cart::firstOrCreate(['user_id' => auth()->id()]);
@@ -17,15 +19,28 @@ class CartController extends Controller
 
     public function index()
     {
-        $cart = $this->getOrCreateCart();
-        $cart->load(['items.product.category', 'items.product.images']);
+        $cart  = $this->getOrCreateCart();
+        $items = CartItem::where('cart_id', $cart->id)->get();
 
-        $subtotal = $cart->items->sum(fn($item) =>
-            $item->product->price * $item->quantity
+        // Ambil semua produk dari POS API sekaligus
+        $allProducts = $this->posApi->getProducts(['per_page' => 100]);
+        $productsMap = collect($allProducts['data'] ?? [])->keyBy('id');
+
+        $cartItems = $items->map(function ($item) use ($productsMap) {
+            $product = $productsMap->get($item->product_id);
+            return [
+                'id'       => $item->id,
+                'quantity' => $item->quantity,
+                'product'  => $product ?? ['id' => $item->product_id, 'name' => 'Produk tidak tersedia', 'price' => 0],
+            ];
+        });
+
+        $subtotal = $cartItems->sum(fn($item) =>
+            ($item['product']['price'] ?? 0) * $item['quantity']
         );
 
         return Inertia::render('Cart', [
-            'cart'     => $cart,
+            'cart'     => ['items' => $cartItems],
             'subtotal' => $subtotal,
         ]);
     }
@@ -33,29 +48,36 @@ class CartController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'product_id' => 'required|exists:products,id',
+            'product_id' => 'required',
             'quantity'   => 'required|integer|min:1',
         ]);
 
-        $product = Product::findOrFail($request->product_id);
+        // Validasi produk dari POS API
+        $product = $this->posApi->getProductById($request->product_id);
+        if (!$product) {
+            return back()->with('error', 'Produk tidak ditemukan.');
+        }
 
-        if ($product->stock < $request->quantity) {
+        $stock = $product['stock'] ?? 0;
+        if ($stock < $request->quantity) {
             return back()->with('error', 'Stok tidak mencukupi.');
         }
 
         $cart = $this->getOrCreateCart();
-
-        $item = $cart->items()->where('product_id', $product->id)->first();
+        $item = CartItem::where('cart_id', $cart->id)
+            ->where('product_id', $request->product_id)
+            ->first();
 
         if ($item) {
             $newQty = $item->quantity + $request->quantity;
-            if ($newQty > $product->stock) {
+            if ($newQty > $stock) {
                 return back()->with('error', 'Stok tidak mencukupi.');
             }
             $item->update(['quantity' => $newQty]);
         } else {
-            $cart->items()->create([
-                'product_id' => $product->id,
+            CartItem::create([
+                'cart_id'    => $cart->id,
+                'product_id' => $request->product_id,
                 'quantity'   => $request->quantity,
             ]);
         }
@@ -65,22 +87,29 @@ class CartController extends Controller
 
     public function update(Request $request, CartItem $cartItem)
     {
-        $this->authorize('update', $cartItem->cart);
+        // Pastikan cart milik user ini
+        if ($cartItem->cart->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         $request->validate(['quantity' => 'required|integer|min:1']);
 
-        if ($request->quantity > $cartItem->product->stock) {
+        $product = $this->posApi->getProductById($cartItem->product_id);
+        $stock   = $product['stock'] ?? 999;
+
+        if ($request->quantity > $stock) {
             return back()->with('error', 'Stok tidak mencukupi.');
         }
 
         $cartItem->update(['quantity' => $request->quantity]);
-
         return back();
     }
 
     public function destroy(CartItem $cartItem)
     {
-        $this->authorize('update', $cartItem->cart);
+        if ($cartItem->cart->user_id !== auth()->id()) {
+            abort(403);
+        }
         $cartItem->delete();
         return back()->with('success', 'Produk dihapus dari keranjang.');
     }
