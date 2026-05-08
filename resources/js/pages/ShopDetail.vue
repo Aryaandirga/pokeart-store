@@ -73,7 +73,12 @@ const wishlisted = computed(() => {
 })
 
 function toggleWishlist() {
-    axios.post(`/wishlist/${props.product.id}`)
+    const url = window.location.origin + '/wishlist/' + props.product.id
+    axios.post(url, {}, {
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+        }
+    })
 }
 </script>
 <template>

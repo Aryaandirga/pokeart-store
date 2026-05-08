@@ -61,7 +61,8 @@ function toggleWishlist(product) {
     } else {
         localWishlisted.value.add(product.id)
     }
-    axios.post(`/wishlist/${product.id}`, {}, {
+    const url = window.location.origin + '/wishlist/' + product.id
+    axios.post(url, {}, {
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
             'X-Inertia': true,
