@@ -8,15 +8,14 @@ php artisan cache:clear
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
-php artisan storage:link
-
-# Run migrations
-php artisan migrate --force
 
 # Storage link & permissions
 php artisan storage:link --force 2>/dev/null || true
 chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+
+# Run migrations
+php artisan migrate --force
 
 # Start PHP-FPM
 php-fpm -D
