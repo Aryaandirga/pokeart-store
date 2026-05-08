@@ -1,16 +1,8 @@
 #!/bin/bash
 
-# Run migrations
+php artisan config:cache
+php artisan route:cache
 php artisan migrate --force
+php artisan storage:link --force 2>/dev/null || true
 
-# Start PHP-FPM foreground
-php-fpm -F &
-
-# Tunggu FPM siap
-sleep 5
-
-# Cek apakah FPM jalan
-php-fpm -t
-
-# Start Nginx foreground
-nginx -g "daemon off;"
+php artisan serve --host=0.0.0.0 --port=8080
