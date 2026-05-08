@@ -18,6 +18,10 @@ WORKDIR /var/www
 COPY . .
 
 RUN composer install --no-dev --optimize-autoloader
+
+# Prevent UTF-8 BOM from breaking php artisan commands (Railway/Linux can surface BOM from tooling or cached layers).
+RUN php docker/strip-php-bom.php
+
 RUN php artisan wayfinder:generate && npm install && npm run build
 RUN php artisan route:clear || true
 RUN php artisan config:clear || true
@@ -30,4 +34,3 @@ RUN chmod +x /start.sh
 
 EXPOSE 8080
 CMD ["/start.sh"]
-# force rebuild 2026-05-09 01:15
