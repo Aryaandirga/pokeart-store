@@ -7,7 +7,10 @@ php artisan migrate --force
 php-fpm -F &
 
 # Tunggu FPM siap
-sleep 3
+sleep 5
+
+# Cek apakah FPM jalan
+php-fpm -t
 
 # Start Nginx foreground
 nginx -g "daemon off;"
