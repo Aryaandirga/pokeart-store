@@ -32,6 +32,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->validateCsrfTokens(except: [
             'checkout/callback',
+            'midtrans/callback',
+            'wishlist/*',
         ]);
 
         $middleware->alias([
