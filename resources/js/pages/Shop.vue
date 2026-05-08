@@ -61,10 +61,12 @@ function toggleWishlist(product) {
     } else {
         localWishlisted.value.add(product.id)
     }
-    axios.post(`/wishlist/${product.id}`).then(() => {
-        // Props akan diupdate oleh Inertia shared props di request berikutnya
+    axios.post(`/wishlist/${product.id}`, {}, {
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            'X-Inertia': true,
+        }
     }).catch(() => {
-        // Rollback jika gagal
         if (localWishlisted.value.has(product.id)) {
             localWishlisted.value.delete(product.id)
         } else {
