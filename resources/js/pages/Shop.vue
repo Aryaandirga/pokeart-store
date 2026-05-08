@@ -1,7 +1,10 @@
 <script setup>
 import { Link, router } from '@inertiajs/vue3'
 import { ref, watch, computed } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import { imageUrl } from '@/composables/useImageUrl.js'
+
+const page = usePage()
 
 const props = defineProps({
     products: Object,
@@ -43,11 +46,12 @@ const activeCategory = computed(() =>
     props.categories?.find(c => String(c.id) === String(category.value))?.name || 'Semua Kategori'
 )
 
-// Track wishlist secara lokal
-const localWishlisted = ref(new Set(props.wishlistedIds || []))
+// Track wishlist dari shared props (selalu up-to-date saat refresh)
+const sharedWishlistedIds = computed(() => page.props.wishlistedIds || [])
+const localWishlisted = ref(new Set(sharedWishlistedIds.value))
 
-watch(() => props.wishlistedIds, (newIds) => {
-    localWishlisted.value = new Set(newIds || [])
+watch(sharedWishlistedIds, (newIds) => {
+    localWishlisted.value = new Set(newIds)
 })
 
 function toggleWishlist(product) {

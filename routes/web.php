@@ -63,12 +63,11 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile/update', [ProfileController::class, 'update'])->name('my.profile.update');
     Route::post('/profile/avatar', [ProfileController::class, 'uploadAvatar'])->name('my.profile.avatar');
 
-Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist');        // ← tambah ini
+    Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist');
     Route::post('/wishlist/{product}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
 
     Route::get('/shipping/areas', [ShippingController::class, 'searchArea'])->name('shipping.areas');
     Route::post('/shipping/rates', [ShippingController::class, 'getRates'])->name('shipping.rates');
-    Route::post('/wishlist/{product}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
 
     Route::get('/orders', [MyOrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/{order}', [MyOrderController::class, 'show'])->name('orders.show');

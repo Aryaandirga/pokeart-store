@@ -46,6 +46,12 @@ class HandleInertiaRequests extends Middleware
                 ->withCount('items')
                 ->first()?->items_count ?? 0;
         },
+        'wishlistedIds' => function () use ($request) {
+            if (!$request->user()) return [];
+            return \App\Models\Wishlist::where('user_id', $request->user()->id)
+                ->pluck('product_id')
+                ->toArray();
+        },
         'csrf_token' => csrf_token(),
     ];
 }

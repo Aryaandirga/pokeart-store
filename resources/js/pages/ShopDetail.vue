@@ -1,7 +1,9 @@
 <script setup>
-import { Link, router } from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
 import { imageUrl } from '@/composables/useImageUrl.js'
+
+const page = usePage()
 
 const props = defineProps({
     product: Object,
@@ -63,13 +65,15 @@ const totalPrice = computed(() =>
     Number(props.product.price) * qty.value
 )
 
-// Wishlist
-const wishlisted = ref(props.product.is_wishlisted || false)
+// Wishlist — baca dari shared props supaya persist saat refresh
+const wishlisted = computed(() => {
+    const ids = page.props.wishlistedIds || []
+    return ids.includes(props.product.id)
+})
 
 function toggleWishlist() {
     router.post(`/wishlist/${props.product.id}`, {}, {
-        preserveState: true,
-        onSuccess: () => { wishlisted.value = !wishlisted.value }
+        preserveScroll: true,
     })
 }
 </script>
