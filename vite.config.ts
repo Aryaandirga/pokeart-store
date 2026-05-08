@@ -9,7 +9,24 @@ import { defineConfig } from 'vite';
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.ts'],
+            input: [
+                'resources/css/app.css', 
+                'resources/js/app.ts',
+                'resources/js/pages/Home.vue',
+                'resources/js/pages/Shop.vue',
+                'resources/js/pages/ShopDetail.vue',
+                'resources/js/pages/Cart.vue',
+                'resources/js/pages/Checkout.vue',
+                'resources/js/pages/CheckoutSuccsess.vue',
+                'resources/js/pages/Contact.vue',
+                'resources/js/pages/Wishlist.vue',
+                'resources/js/pages/MyOrders.vue',
+                'resources/js/pages/MyOrderDetail.vue',
+                'resources/js/pages/Profile.vue',
+                'resources/js/pages/Tracking.vue',
+                'resources/js/pages/Forbidden.vue',
+                'resources/js/pages/admin/Dashboard.vue',
+            ],
             refresh: true,
             fonts: [
                 bunny('Instrument Sans', {
