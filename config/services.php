@@ -38,5 +38,10 @@ return [
     'pokewallet' => [
         'key' => env('POKEWALLET_API_KEY', ''),
     ],
+    
+    'pos_api' => [
+    'url'   => env('POS_API_URL', ''),
+    'token' => env('POS_API_TOKEN', ''),
+],
 
 ];
