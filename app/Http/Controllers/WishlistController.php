@@ -36,7 +36,7 @@ class WishlistController extends Controller
 
     public function toggle(Request $request, $productId)
     {
-        // Tidak perlu validasi ke tabel products — ID dari POS API
+        // Tidak perlu validasi product di DB — ID dari POS API
         $existing = Wishlist::where('user_id', auth()->id())
             ->where('product_id', $productId)
             ->first();
