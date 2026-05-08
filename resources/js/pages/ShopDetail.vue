@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { Link, router, usePage } from '@inertiajs/vue3'
 import axios from 'axios'
 import { ref, computed } from 'vue'
@@ -23,15 +23,15 @@ function decrement() {
 }
 
 function addToCart() {
-    router.post('/cart', {
+    axios.post('/cart', {
         product_id: props.product.id,
         quantity: qty.value,
-    }, {
-        preserveState: true,
-        onSuccess: () => {
-            added.value = true
-            setTimeout(() => { added.value = false }, 2000)
-        },
+    }).then(() => {
+        added.value = true
+        setTimeout(() => { added.value = false }, 2000)
+    }).catch((err) => {
+        const msg = err.response?.data?.error || 'Gagal menambahkan ke keranjang.'
+        alert(msg)
     })
 }
 
@@ -66,18 +66,18 @@ const totalPrice = computed(() =>
     Number(props.product.price) * qty.value
 )
 
-// Wishlist — baca dari shared props supaya persist saat refresh
-const wishlisted = computed(() => {
-    const ids = page.props.wishlistedIds || []
-    return ids.includes(props.product.id)
-})
+// Wishlist — local state dengan optimistic update
+const localWishlisted = ref((page.props.wishlistedIds || []).includes(props.product.id))
 
 function toggleWishlist() {
+    localWishlisted.value = !localWishlisted.value // optimistic update
     const url = window.location.origin + '/wishlist/' + props.product.id
     axios.post(url, {}, {
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
         }
+    }).catch(() => {
+        localWishlisted.value = !localWishlisted.value // rollback jika gagal
     })
 }
 </script>
@@ -197,16 +197,16 @@ function toggleWishlist() {
                             <button
     @click="toggleWishlist"
     class="flex items-center gap-2 px-5 py-3 border-2 rounded-xl font-semibold text-sm transition-all duration-200"
-    :class="wishlisted
+    :class="localWishlisted
         ? 'border-red-300 bg-red-50 text-red-500'
         : 'border-gray-200 bg-white text-gray-500 hover:border-red-200 hover:bg-red-50 hover:text-red-400'"
 >
     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 transition-all duration-200"
-        :class="wishlisted ? 'fill-red-500 text-red-500' : 'fill-none'"
+        :class="localWishlisted ? 'fill-red-500 text-red-500' : 'fill-none'"
         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
     </svg>
-    {{ wishlisted ? 'Tersimpan di Wishlist' : 'Tambah ke Wishlist' }}
+    {{ localWishlisted ? 'Tersimpan di Wishlist' : 'Tambah ke Wishlist' }}
 </button>
                         </div>
                     </div>
