@@ -10,7 +10,7 @@ export default defineConfig({
     plugins: [
         laravel({
             input: [
-                'resources/css/app.css', 
+                'resources/css/app.css',
                 'resources/js/app.ts',
                 'resources/js/pages/Home.vue',
                 'resources/js/pages/Shop.vue',
@@ -44,8 +44,9 @@ export default defineConfig({
                 },
             },
         }),
-        wayfinder({
+        // ✅ Hanya jalankan wayfinder di development, skip saat build production
+        process.env.NODE_ENV !== 'production' && wayfinder({
             formVariants: true,
         }),
-    ],
+    ].filter(Boolean),
 });
