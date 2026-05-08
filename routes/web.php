@@ -69,8 +69,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/shipping/areas', [ShippingController::class, 'searchArea'])->name('shipping.areas');
     Route::post('/shipping/rates', [ShippingController::class, 'getRates'])->name('shipping.rates');
 
-    Route::get('/orders', [MyOrderController::class, 'index'])->name('orders.index');
-    Route::get('/orders/{order}', [MyOrderController::class, 'show'])->name('orders.show');
+    Route::get('/orders', [MyOrderController::class, 'index'])->name('my.orders.index');
+    Route::get('/orders/{order}', [MyOrderController::class, 'show'])->name('my.orders.show');
 });
 
 
