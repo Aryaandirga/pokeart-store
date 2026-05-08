@@ -49,12 +49,29 @@ Route::get('/debug-wishlist', function() {
         $testInsert = 'insert FAILED: ' . $e->getMessage();
     }
 
+    // Test cart insert
+    $cartTest = null;
+    try {
+        $cart = \App\Models\Cart::firstOrCreate(['user_id' => auth()->id()]);
+        \App\Models\CartItem::create([
+            'cart_id'    => $cart->id,
+            'product_id' => 'test-product',
+            'quantity'   => 1,
+        ]);
+        \App\Models\CartItem::where('product_id', 'test-product')->delete();
+        $cartTest = 'cart insert OK, cart_id: ' . $cart->id;
+    } catch (\Exception $e) {
+        $cartTest = 'cart insert FAILED: ' . $e->getMessage();
+    }
+
     return response()->json([
         'auth' => auth()->check() ? auth()->user()->email : 'not logged in',
         'user_id' => auth()->id(),
         'wishlist_ids' => $wishlistIds,
         'wishlist_table_test' => $testInsert,
+        'cart_test' => $cartTest,
         'total_wishlists_in_db' => \DB::table('wishlists')->count(),
+        'total_cart_items' => \DB::table('cart_items')->count(),
     ]);
 });
 
