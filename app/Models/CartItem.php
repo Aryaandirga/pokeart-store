@@ -8,6 +8,11 @@ class CartItem extends Model
 {
     protected $fillable = ['cart_id', 'product_id', 'quantity'];
 
+    // product_id bisa berupa string (slug dari POS API)
+    protected $casts = [
+        'product_id' => 'string',
+    ];
+
     public function cart()
     {
         return $this->belongsTo(Cart::class);
