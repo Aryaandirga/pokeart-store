@@ -17,15 +17,21 @@ class WishlistController extends Controller
             ->pluck('product_id')
             ->toArray();
 
-        // Ambil detail produk dari POS API
+        // Ambil semua produk sekaligus dari POS API
         $wishlists = [];
-        foreach ($wishlistIds as $productId) {
-            $product = $this->posApi->getProductById($productId);
-            if ($product) {
-                $wishlists[] = [
-                    'id'      => $productId,
-                    'product' => $product,
-                ];
+        if (!empty($wishlistIds)) {
+            $allProducts = $this->posApi->getProducts(['per_page' => 100]);
+            $productsMap = collect($allProducts['data'] ?? [])
+                ->keyBy('id');
+
+            foreach ($wishlistIds as $productId) {
+                $product = $productsMap->get($productId);
+                if ($product) {
+                    $wishlists[] = [
+                        'id'      => $productId,
+                        'product' => $product,
+                    ];
+                }
             }
         }
 
