@@ -76,3 +76,8 @@ Route::middleware('auth')->group(function () {
 
 require __DIR__.'/settings.php';
 //require __DIR__.'/auth.php';
+
+// Fallback wishlist route untuk debug
+Route::post('/wishlist/{productId}', [WishlistController::class, 'toggle'])
+    ->middleware('auth')
+    ->name('wishlist.toggle.fallback');
