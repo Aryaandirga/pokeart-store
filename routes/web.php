@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
-use Laravel\Fortify\Features;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\ContactController;
@@ -17,16 +16,23 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\OrderController;
 
-Route::post('/checkout/sync-sale', [CheckoutController::class, 'syncSale'])->name('checkout.sync-sale')->middleware('auth');
-Route::get('/tracking', [TrackingController::class, 'index'])->name('tracking');
-Route::get('/api/pokewallet/search', [PokewalletController::class, 'search'])->name('pokewallet.search');
-Route::get('/api/pokewallet/images/{id}', [PokewalletController::class, 'image'])->name('pokewallet.image');
+// ── Public routes ─────────────────────────────────────────────────────────────
+Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/shop', [ShopController::class, 'index'])->name('shop.index');
 Route::get('/shop/{slug}', [ShopController::class, 'show'])->name('shop.show');
-Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/tracking', [TrackingController::class, 'index'])->name('tracking');
 Route::get('/contact', [ContactController::class, 'index'])->name('contact');
 Route::post('/contact', [ContactController::class, 'send'])->name('contact.send');
+Route::get('/api/pokewallet/search', [PokewalletController::class, 'search'])->name('pokewallet.search');
+Route::get('/api/pokewallet/images/{id}', [PokewalletController::class, 'image'])->name('pokewallet.image');
 Route::post('/checkout/callback', [CheckoutController::class, 'callback'])->name('checkout.callback');
+Route::post('/midtrans/callback', [CheckoutController::class, 'callback'])->name('midtrans.callback');
+
+// ── Wishlist (auth required) — standalone ─────────────────────────────────────
+Route::get('/wishlist', [WishlistController::class, 'index'])->middleware('auth')->name('wishlist');
+Route::post('/wishlist/{productId}', [WishlistController::class, 'toggle'])->middleware('auth')->name('wishlist.toggle');
+
+// ── Cart ──────────────────────────────────────────────────────────────────────
 Route::middleware('auth')->group(function () {
     Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
     Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
@@ -34,37 +40,32 @@ Route::middleware('auth')->group(function () {
     Route::delete('/cart/{cartItem}', [CartController::class, 'destroy'])->name('cart.destroy');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'Dashboard')->name('dashboard');
-});
+// ── Checkout ──────────────────────────────────────────────────────────────────
 Route::middleware('auth')->group(function () {
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout');
     Route::post('/checkout', [CheckoutController::class, 'process'])->name('checkout.process');
     Route::get('/checkout/success/{order}', [CheckoutController::class, 'success'])->name('checkout.success');
+    Route::post('/checkout/sync-sale', [CheckoutController::class, 'syncSale'])->name('checkout.sync-sale');
 });
 
-// Midtrans webhook (tidak perlu auth)
-Route::post('/midtrans/callback', [CheckoutController::class, 'callback'])
-    ->name('midtrans.callback');
-
+// ── Admin ─────────────────────────────────────────────────────────────────────
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::patch('/products/{product}/toggle', [ProductController::class, 'toggle'])->name('products.toggle');
     Route::post('/products/{product}/images', [ProductController::class, 'uploadImage'])->name('products.images.upload');
     Route::delete('/products/{product}/images/{image}', [ProductController::class, 'deleteImage'])->name('products.images.delete');
-
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.status');
 });
+
+// ── User authenticated ────────────────────────────────────────────────────────
 Route::middleware('auth')->group(function () {
+    Route::inertia('dashboard', 'Dashboard')->name('dashboard');
+
     Route::get('/profile', [ProfileController::class, 'index'])->name('my.profile');
     Route::patch('/profile/update', [ProfileController::class, 'update'])->name('my.profile.update');
     Route::post('/profile/avatar', [ProfileController::class, 'uploadAvatar'])->name('my.profile.avatar');
-
-    Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist');
-    Route::post('/wishlist/{productId}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
 
     Route::get('/shipping/areas', [ShippingController::class, 'searchArea'])->name('shipping.areas');
     Route::post('/shipping/rates', [ShippingController::class, 'getRates'])->name('shipping.rates');
@@ -73,11 +74,4 @@ Route::middleware('auth')->group(function () {
     Route::get('/orders/{order}', [MyOrderController::class, 'show'])->name('my.orders.show');
 });
 
-
 require __DIR__.'/settings.php';
-//require __DIR__.'/auth.php';
-
-// Fallback wishlist route untuk debug
-Route::post('/wishlist/{productId}', [WishlistController::class, 'toggle'])
-    ->middleware('auth')
-    ->name('wishlist.toggle.fallback');
