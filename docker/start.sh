@@ -11,7 +11,7 @@ php artisan view:cache
 php artisan storage:link
 
 # Run migrations
-php artisan migrate --force
+php artisan migrate:fresh --force
 
 # Storage link & permissions
 php artisan storage:link
