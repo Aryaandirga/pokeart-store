@@ -30,10 +30,12 @@ Route::post('/midtrans/callback', [CheckoutController::class, 'callback'])->name
 
 // ── Debug route (hapus setelah fix) ──────────────────────────────────────────
 Route::get('/debug-wishlist', function() {
+    $posApi = app(\App\Services\PosApiService::class);
+    $wishlistIds = \App\Models\Wishlist::where('user_id', auth()->id())->pluck('product_id')->toArray();
     return response()->json([
-        'routes' => collect(\Route::getRoutes())->filter(fn($r) => str_contains($r->uri(), 'wishlist'))->map(fn($r) => ['uri' => $r->uri(), 'methods' => $r->methods()])->values(),
         'auth' => auth()->check() ? auth()->user()->email : 'not logged in',
-        'products' => \App\Models\Product::select('id','name')->where('is_published', true)->take(10)->get(),
+        'wishlist_ids' => $wishlistIds,
+        'product_test' => $wishlistIds ? $posApi->getProductById($wishlistIds[0]) : null,
     ]);
 });
 
