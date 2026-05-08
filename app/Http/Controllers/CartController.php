@@ -52,28 +52,13 @@ class CartController extends Controller
             'quantity'   => 'required|integer|min:1',
         ]);
 
-        // Validasi produk dari POS API
-        $product = $this->posApi->getProductById($request->product_id);
-        if (!$product) {
-            return response()->json(['error' => 'Produk tidak ditemukan di POS API. ID: ' . $request->product_id], 404);
-        }
-
-        $stock = $product['stock'] ?? 0;
-        if ($stock < $request->quantity) {
-            return back()->with('error', 'Stok tidak mencukupi.');
-        }
-
         $cart = $this->getOrCreateCart();
         $item = CartItem::where('cart_id', $cart->id)
             ->where('product_id', $request->product_id)
             ->first();
 
         if ($item) {
-            $newQty = $item->quantity + $request->quantity;
-            if ($newQty > $stock) {
-                return back()->with('error', 'Stok tidak mencukupi.');
-            }
-            $item->update(['quantity' => $newQty]);
+            $item->update(['quantity' => $item->quantity + $request->quantity]);
         } else {
             CartItem::create([
                 'cart_id'    => $cart->id,
