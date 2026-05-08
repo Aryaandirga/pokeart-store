@@ -36,7 +36,16 @@ class WishlistController extends Controller
 
     public function toggle(Request $request, $productId)
     {
-        // Tidak perlu validasi product di DB — ID dari POS API
+        \Log::info('Wishlist toggle called', [
+            'user_id'    => auth()->id(),
+            'product_id' => $productId,
+            'auth_check' => auth()->check(),
+        ]);
+
+        if (!auth()->check()) {
+            return response()->json(['error' => 'Not authenticated'], 401);
+        }
+
         $existing = Wishlist::where('user_id', auth()->id())
             ->where('product_id', $productId)
             ->first();
@@ -51,6 +60,8 @@ class WishlistController extends Controller
             ]);
             $action = 'added';
         }
+
+        \Log::info('Wishlist toggle done', ['action' => $action, 'product_id' => $productId]);
 
         return response()->json([
             'action'     => $action,
