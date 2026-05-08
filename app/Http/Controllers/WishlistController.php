@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Wishlist;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class WishlistController extends Controller
@@ -19,26 +20,31 @@ class WishlistController extends Controller
             'wishlists' => $wishlists,
         ]);
     }
-public function toggle(Product $product)
-{
-    \Log::info('Wishlist toggle', [
-        'user_id'    => auth()->id(),
-        'product_id' => $product->id,
-    ]);
 
-    $existing = Wishlist::where('user_id', auth()->id())
-        ->where('product_id', $product->id)
-        ->first();
+    public function toggle(Request $request, $productId)
+    {
+        // Cari product tanpa Route Model Binding
+        $product = Product::find($productId);
 
-    if ($existing) {
-        $existing->delete();
-    } else {
-        Wishlist::create([
-            'user_id'    => auth()->id(),
-            'product_id' => $product->id,
-        ]);
+        if (!$product) {
+            return response()->json(['error' => 'Product not found', 'id' => $productId], 404);
+        }
+
+        $existing = Wishlist::where('user_id', auth()->id())
+            ->where('product_id', $product->id)
+            ->first();
+
+        if ($existing) {
+            $existing->delete();
+            $action = 'removed';
+        } else {
+            Wishlist::create([
+                'user_id'    => auth()->id(),
+                'product_id' => $product->id,
+            ]);
+            $action = 'added';
+        }
+
+        return response()->json(['action' => $action, 'product_id' => $product->id]);
     }
-
-    return redirect()->back();
-}
 }
