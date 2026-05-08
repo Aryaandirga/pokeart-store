@@ -33,6 +33,7 @@ Route::get('/debug-wishlist', function() {
     return response()->json([
         'routes' => collect(\Route::getRoutes())->filter(fn($r) => str_contains($r->uri(), 'wishlist'))->map(fn($r) => ['uri' => $r->uri(), 'methods' => $r->methods()])->values(),
         'auth' => auth()->check() ? auth()->user()->email : 'not logged in',
+        'products' => \App\Models\Product::select('id','name')->where('is_published', true)->take(10)->get(),
     ]);
 });
 
