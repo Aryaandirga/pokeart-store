@@ -39,6 +39,14 @@ class PosApiService
         return $response->json();
     }
 
+    public function getProductById($id)
+    {
+        $response = $this->http()
+            ->get("{$this->baseUrl}/api/products/{$id}");
+        if ($response->failed()) return null;
+        return $response->json();
+    }
+
     public function getCategories()
     {
         $response = $this->http()

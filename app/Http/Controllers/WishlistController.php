@@ -2,19 +2,32 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
 use App\Models\Wishlist;
+use App\Services\PosApiService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class WishlistController extends Controller
 {
+    public function __construct(private PosApiService $posApi) {}
+
     public function index()
     {
-        $wishlists = Wishlist::where('user_id', auth()->id())
-            ->with(['product.category', 'product.images'])
-            ->latest()
-            ->get();
+        $wishlistIds = Wishlist::where('user_id', auth()->id())
+            ->pluck('product_id')
+            ->toArray();
+
+        // Ambil detail produk dari POS API
+        $wishlists = [];
+        foreach ($wishlistIds as $productId) {
+            $product = $this->posApi->getProductById($productId);
+            if ($product) {
+                $wishlists[] = [
+                    'id'      => $productId,
+                    'product' => $product,
+                ];
+            }
+        }
 
         return Inertia::render('Wishlist', [
             'wishlists' => $wishlists,
@@ -23,15 +36,9 @@ class WishlistController extends Controller
 
     public function toggle(Request $request, $productId)
     {
-        // Cari product tanpa Route Model Binding
-        $product = Product::find($productId);
-
-        if (!$product) {
-            return response()->json(['error' => 'Product not found', 'id' => $productId], 404);
-        }
-
+        // Tidak perlu validasi ke tabel products — ID dari POS API
         $existing = Wishlist::where('user_id', auth()->id())
-            ->where('product_id', $product->id)
+            ->where('product_id', $productId)
             ->first();
 
         if ($existing) {
@@ -40,11 +47,14 @@ class WishlistController extends Controller
         } else {
             Wishlist::create([
                 'user_id'    => auth()->id(),
-                'product_id' => $product->id,
+                'product_id' => $productId,
             ]);
             $action = 'added';
         }
 
-        return response()->json(['action' => $action, 'product_id' => $product->id]);
+        return response()->json([
+            'action'     => $action,
+            'product_id' => $productId,
+        ]);
     }
 }
