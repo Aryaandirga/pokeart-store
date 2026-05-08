@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cart;
+use App\Services\PosApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class ShippingController extends Controller
 {
+    public function __construct(private PosApiService $posApi) {}
+
     public function searchArea(Request $request)
     {
         $request->validate(['q' => 'required|string|min:3']);
@@ -46,15 +49,20 @@ class ShippingController extends Controller
         ]);
 
         $cart = Cart::where('user_id', auth()->id())
-            ->with('items.product')
+            ->with('items')
             ->first();
 
         if (!$cart || $cart->items->isEmpty()) {
             return response()->json(['error' => 'Keranjang kosong'], 400);
         }
 
-        $totalWeight = max($cart->items->sum(function ($item) {
-            return ($item->product->weight ?? 100) * $item->quantity;
+        $allProducts = $this->posApi->getProducts(['per_page' => 100]);
+        $productsMap = collect($allProducts['data'] ?? [])->keyBy('id');
+
+        $totalWeight = max($cart->items->sum(function ($item) use ($productsMap) {
+            $product = $productsMap->get($item->product_id);
+
+            return ($product['weight'] ?? 100) * $item->quantity;
         }), 1);
 
         // Coba Biteship
@@ -70,7 +78,11 @@ class ShippingController extends Controller
                 'couriers'            => 'jne,j&t,sicepat,anteraja,pos,tiki',
                 'items'               => [[
                     'name'     => 'Paket Kartu Pokemon',
-                    'value'    => (int) $cart->items->sum(fn($i) => $i->product->price * $i->quantity),
+                    'value'    => (int) $cart->items->sum(function ($item) use ($productsMap) {
+                        $product = $productsMap->get($item->product_id);
+
+                        return ($product['price'] ?? 0) * $item->quantity;
+                    }),
                     'weight'   => $totalWeight,
                     'quantity' => 1,
                 ]],

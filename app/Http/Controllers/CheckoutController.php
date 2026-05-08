@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Http\Controllers;
 
@@ -28,40 +28,59 @@ class CheckoutController extends Controller
     }
 
     public function index()
-{
-    $cart = Cart::where('user_id', auth()->id())
-        ->with(['items' => function($q) {
-            $q->whereHas('product', function($pq) {
-                $pq->where('is_active', true);
-            })->with(['product.category', 'product.images']);
-        }])
-        ->firstOrFail();
+    {
+        $cart = Cart::where('user_id', auth()->id())
+            ->with('items')
+            ->firstOrFail();
 
-    // ✅ Hapus cart item yang produknya sudah tidak ada/aktif
-    $cart->items->each(function($item) {
-        if (!$item->product) {
-            $item->delete();
+        $allProducts = $this->posApi->getProducts(['per_page' => 100]);
+        $productsMap = collect($allProducts['data'] ?? [])->keyBy('id');
+
+        $validItems = $cart->items->filter(function ($item) use ($productsMap) {
+            $product = $productsMap->get($item->product_id);
+
+            return !empty($product) && ($product['is_active'] ?? true);
+        })->values();
+
+        $invalidItemIds = $cart->items
+            ->whereNotIn('id', $validItems->pluck('id')->all())
+            ->pluck('id')
+            ->all();
+
+        if ($invalidItemIds !== []) {
+            \App\Models\CartItem::whereIn('id', $invalidItemIds)->delete();
         }
-    });
 
-    // Refresh setelah cleanup
-    $cart->load(['items.product.category', 'items.product.images']);
+        if ($validItems->isEmpty()) {
+            return redirect()->route('cart.index')
+                ->with('error', 'Keranjang kamu kosong.');
+        }
 
-    if ($cart->items->isEmpty()) {
-        return redirect()->route('cart.index')
-            ->with('error', 'Keranjang kamu kosong.');
+        $checkoutItems = $validItems->map(function ($item) use ($productsMap) {
+            $product = $productsMap->get($item->product_id);
+
+            return [
+                'id' => $item->id,
+                'quantity' => $item->quantity,
+                'product' => $product,
+            ];
+        });
+
+        $subtotal = $checkoutItems->sum(
+            fn ($item) => ($item['product']['price'] ?? 0) * $item['quantity']
+        );
+        $addresses = Address::where('user_id', auth()->id())->get();
+
+        return Inertia::render('Checkout', [
+            'cart' => [
+                'id' => $cart->id,
+                'items' => $checkoutItems,
+            ],
+            'subtotal' => $subtotal,
+            'addresses' => $addresses,
+            'clientKey' => config('midtrans.client_key'),
+        ]);
     }
-
-    $subtotal  = $cart->items->sum(fn($i) => $i->product->price * $i->quantity);
-    $addresses = Address::where('user_id', auth()->id())->get();
-
-    return Inertia::render('Checkout', [
-        'cart'      => $cart,
-        'subtotal'  => $subtotal,
-        'addresses' => $addresses,
-        'clientKey' => config('midtrans.client_key'),
-    ]);
-}
 
     public function process(Request $request)
     {
