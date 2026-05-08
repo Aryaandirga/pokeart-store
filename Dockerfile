@@ -1,4 +1,4 @@
-FROM php:8.4-fpm
+﻿FROM php:8.4-fpm
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
@@ -30,3 +30,4 @@ RUN chmod +x /start.sh
 
 EXPOSE 8080
 CMD ["/start.sh"]
+# force rebuild 2026-05-09 01:15
