@@ -338,14 +338,15 @@ class CheckoutController extends Controller
         // agar sync ke DB tetap berhasil walau API gagal
         try {
             $this->posApi->createOrder([
-                'grand_total'   => $order->total,
-                'customer_name' => 'Toko Online',
-                'items'         => $order->items->map(fn($item) => [
-                    'id'    => $item->product_id,
-                    'qty'   => $item->quantity,
-                    'price' => $item->price,
-                ])->toArray(),
-            ]);
+    'grand_total'   => $order->total,
+    'customer_name' => 'Toko Online',
+    'user_id'       => 1, // tambahkan ini
+    'items'         => $order->items->map(fn($item) => [
+        'id'    => $item->product_id,
+        'qty'   => $item->quantity,
+        'price' => $item->price,
+    ])->toArray(),
+]);
         } catch (\Throwable $e) {
             Log::warning('posApi->createOrder gagal (stok tidak dikurangi)', [
                 'order'   => $order->order_number,
