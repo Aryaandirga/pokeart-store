@@ -1,4 +1,5 @@
 <script setup>
+import { Head } from '@inertiajs/vue3'
 import Navbar from '@/components/Navbar.vue'
 
 defineProps({
@@ -7,6 +8,7 @@ defineProps({
 </script>
 
 <template>
+    <Head :title="title" />
     <div class="min-h-screen bg-white">
         <Navbar />
         <main>
