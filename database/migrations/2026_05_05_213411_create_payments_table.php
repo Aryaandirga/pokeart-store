@@ -6,11 +6,13 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+     public $withinTransaction = false;
     /**
      * Run the migrations.
      */
     public function up(): void
 {
+   
     Schema::create('payments', function (Blueprint $table) {
         $table->id();
         $table->foreignId('order_id')->constrained()->cascadeOnDelete();
