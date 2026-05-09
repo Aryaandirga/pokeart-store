@@ -1,0 +1,2 @@
+[phases.deploy]
+cmds = ["php artisan config:clear", "php artisan config:cache"]
