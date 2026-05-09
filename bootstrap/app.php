@@ -30,10 +30,9 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        $middleware->validateCsrfTokens(except: [
-            'checkout/callback',
-            'midtrans/callback',
-            'wishlist/*',
+         $middleware->validateCsrfTokens(except: [
+        'checkout/callback',
+        'midtrans/callback',
         ]);
 
         $middleware->alias([
