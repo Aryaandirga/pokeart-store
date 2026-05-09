@@ -29,6 +29,7 @@ function addToCart() {
     }, {
         preserveScroll: true,
         preserveState: true,
+        only: ['cartCount'],  // ← hanya refresh cartCount dari server
         onSuccess: () => {
             added.value = true
             setTimeout(() => { added.value = false }, 2000)
@@ -38,7 +39,6 @@ function addToCart() {
         }
     })
 }
-
 // Carousel desktop
 const carouselIndex = ref(0)
 const itemsPerView  = 4
