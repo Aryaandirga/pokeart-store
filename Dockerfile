@@ -29,6 +29,7 @@ RUN php artisan config:clear || true
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache \
     && chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
+# Copy start script v3
 COPY docker/start.sh /start.sh
 RUN chmod +x /start.sh
 
