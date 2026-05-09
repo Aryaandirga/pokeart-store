@@ -108,12 +108,12 @@ function formatDate(date) {
                                         class="w-9 h-9 rounded-lg bg-[#d4eef1] border-2 border-white overflow-hidden shrink-0"
                                         :style="{ zIndex: 10 - idx }"
                                     >
-                                        <img
-                                            v-if="item.product?.image"
-                                            :src="`/storage/${item.product.image}`"
-                                            :alt="item.product.name"
-                                            class="w-full h-full object-cover"
-                                        />
+                                       <img
+    v-if="item.product?.image"
+    :src="item.product.image?.startsWith('http') ? item.product.image : `/storage/${item.product.image}`"
+    :alt="item.product?.name"
+    class="w-full h-full object-cover"
+/>
                                         <div v-else class="w-full h-full flex items-center justify-center text-[#8bc5cd] text-xs">🃏</div>
                                     </div>
                                     <div v-if="order.items.length > 3"
