@@ -67,7 +67,7 @@ class CartController extends Controller
             ]);
         }
 
-        return response()->json(['success' => true, 'message' => 'Produk ditambahkan ke keranjang!']);
+        return back()->with('success', 'Produk ditambahkan ke keranjang!');
     }
 
     public function update(Request $request, CartItem $cartItem)
