@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
+import { useForm, Head } from '@inertiajs/vue3';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { store } from '@/routes/register';
 
 defineOptions({
     layout: {
@@ -14,17 +13,25 @@ defineOptions({
         description: 'Daftar untuk mulai belanja kartu Pokémon',
     },
 });
+
+const form = useForm({
+    name: '',
+    email: '',
+    password: '',
+    password_confirmation: '',
+});
+
+function submit() {
+    form.post('/register', {
+        onFinish: () => form.reset('password', 'password_confirmation'),
+    });
+}
 </script>
 
 <template>
     <Head title="Daftar" />
 
-    <Form
-        v-bind="store.form()"
-        :reset-on-success="['password', 'password_confirmation']"
-        v-slot="{ errors, processing }"
-        class="flex flex-col gap-5"
-    >
+    <form @submit.prevent="submit" class="flex flex-col gap-5">
         <div class="grid gap-4">
             <div class="grid gap-1.5">
                 <Label for="name" class="text-xs font-bold text-gray-600 uppercase tracking-wider">
@@ -33,15 +40,15 @@ defineOptions({
                 <Input
                     id="name"
                     type="text"
+                    v-model="form.name"
                     required
                     autofocus
                     :tabindex="1"
                     autocomplete="name"
-                    name="name"
                     placeholder="Nama lengkap kamu"
                     class="border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 bg-gray-50 focus:bg-white focus:border-[#5a9aa4] focus:ring-2 focus:ring-[#8bc5cd]/30 transition-all"
                 />
-                <InputError :message="errors.name" />
+                <InputError :message="form.errors.name" />
             </div>
 
             <div class="grid gap-1.5">
@@ -51,14 +58,14 @@ defineOptions({
                 <Input
                     id="email"
                     type="email"
+                    v-model="form.email"
                     required
                     :tabindex="2"
                     autocomplete="email"
-                    name="email"
                     placeholder="email@example.com"
                     class="border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 bg-gray-50 focus:bg-white focus:border-[#5a9aa4] focus:ring-2 focus:ring-[#8bc5cd]/30 transition-all"
                 />
-                <InputError :message="errors.email" />
+                <InputError :message="form.errors.email" />
             </div>
 
             <div class="grid gap-1.5">
@@ -67,14 +74,14 @@ defineOptions({
                 </Label>
                 <PasswordInput
                     id="password"
+                    v-model="form.password"
                     required
                     :tabindex="3"
                     autocomplete="new-password"
-                    name="password"
                     placeholder="Minimal 8 karakter"
                     class="border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 bg-gray-50 focus:bg-white focus:border-[#5a9aa4] focus:ring-2 focus:ring-[#8bc5cd]/30 transition-all"
                 />
-                <InputError :message="errors.password" />
+                <InputError :message="form.errors.password" />
             </div>
 
             <div class="grid gap-1.5">
@@ -83,26 +90,25 @@ defineOptions({
                 </Label>
                 <PasswordInput
                     id="password_confirmation"
+                    v-model="form.password_confirmation"
                     required
                     :tabindex="4"
                     autocomplete="new-password"
-                    name="password_confirmation"
                     placeholder="Ulangi password"
                     class="border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 bg-gray-50 focus:bg-white focus:border-[#5a9aa4] focus:ring-2 focus:ring-[#8bc5cd]/30 transition-all"
                 />
-                <InputError :message="errors.password_confirmation" />
+                <InputError :message="form.errors.password_confirmation" />
             </div>
 
             <Button
                 type="submit"
-                tabindex="5"
-                :disabled="processing"
-                data-test="register-user-button"
+                :tabindex="5"
+                :disabled="form.processing"
                 class="w-full bg-[#b96b1c] hover:bg-[#8a4e12] text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm active:scale-[0.99] mt-1"
             >
-                <Spinner v-if="processing" class="w-4 h-4" />
-                {{ processing ? 'Mendaftar...' : 'Buat Akun' }}
+                <Spinner v-if="form.processing" class="w-4 h-4" />
+                {{ form.processing ? 'Mendaftar...' : 'Buat Akun' }}
             </Button>
         </div>
-    </Form>
+    </form>
 </template>
