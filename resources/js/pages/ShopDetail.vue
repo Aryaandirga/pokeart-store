@@ -23,15 +23,19 @@ function decrement() {
 }
 
 function addToCart() {
-    axios.post('/cart', {
+    router.post('/cart', {
         product_id: props.product.id,
         quantity: qty.value,
-    }).then(() => {
-        added.value = true
-        setTimeout(() => { added.value = false }, 2000)
-    }).catch((err) => {
-        const msg = err.response?.data?.error || 'Gagal menambahkan ke keranjang.'
-        alert(msg)
+    }, {
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => {
+            added.value = true
+            setTimeout(() => { added.value = false }, 2000)
+        },
+        onError: () => {
+            alert('Gagal menambahkan ke keranjang.')
+        }
     })
 }
 
