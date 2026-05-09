@@ -11,6 +11,7 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Services\PosApiService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Midtrans\Config;
@@ -38,7 +39,6 @@ class CheckoutController extends Controller
 
         $validItems = $cart->items->filter(function ($item) use ($productsMap) {
             $product = $productsMap->get($item->product_id);
-
             return !empty($product) && ($product['is_active'] ?? true);
         })->values();
 
@@ -58,25 +58,19 @@ class CheckoutController extends Controller
 
         $checkoutItems = $validItems->map(function ($item) use ($productsMap) {
             $product = $productsMap->get($item->product_id);
-
             return [
-                'id' => $item->id,
+                'id'       => $item->id,
                 'quantity' => $item->quantity,
-                'product' => $product,
+                'product'  => $product,
             ];
         });
 
-        $subtotal = $checkoutItems->sum(
-            fn ($item) => ($item['product']['price'] ?? 0) * $item['quantity']
-        );
+        $subtotal  = $checkoutItems->sum(fn($item) => ($item['product']['price'] ?? 0) * $item['quantity']);
         $addresses = Address::where('user_id', auth()->id())->get();
 
         return Inertia::render('Checkout', [
-            'cart' => [
-                'id' => $cart->id,
-                'items' => $checkoutItems,
-            ],
-            'subtotal' => $subtotal,
+            'cart'      => ['id' => $cart->id, 'items' => $checkoutItems],
+            'subtotal'  => $subtotal,
             'addresses' => $addresses,
             'clientKey' => config('midtrans.client_key'),
         ]);
@@ -103,11 +97,9 @@ class CheckoutController extends Controller
             return back()->with('error', 'Keranjang kosong.');
         }
 
-        // Ambil produk dari POS API
         $allProducts = $this->posApi->getProducts(['per_page' => 100]);
         $productsMap = collect($allProducts['data'] ?? [])->keyBy('id');
 
-        // Simpan alamat baru jika tidak pilih yang existing
         if (!$request->address_id) {
             $addressModel = Address::create([
                 'user_id'        => auth()->id(),
@@ -126,10 +118,7 @@ class CheckoutController extends Controller
             $addressId    = $request->address_id;
         }
 
-        $subtotal = $items->sum(function ($item) use ($productsMap) {
-            $product = $productsMap->get($item->product_id);
-            return ($product['price'] ?? 0) * $item->quantity;
-        });
+        $subtotal     = $items->sum(fn($item) => ($productsMap->get($item->product_id)['price'] ?? 0) * $item->quantity);
         $shippingCost = $request->shipping_cost;
         $total        = $subtotal + $shippingCost;
 
@@ -162,8 +151,7 @@ class CheckoutController extends Controller
             'status'   => 'pending',
         ]);
 
-        $user = auth()->user();
-
+        $user   = auth()->user();
         $params = [
             'transaction_details' => [
                 'order_id'     => $order->order_number,
@@ -203,7 +191,6 @@ class CheckoutController extends Controller
 
         $snapToken = Snap::getSnapToken($params);
 
-        // Kosongkan cart
         \App\Models\CartItem::where('cart_id', $cart->id)->delete();
 
         return response()->json([
@@ -214,45 +201,62 @@ class CheckoutController extends Controller
 
     public function callback(Request $request)
     {
-        $notification = new Notification();
+        try {
+            $notification = new Notification();
 
-        $orderId           = $notification->order_id;
-        $transactionStatus = $notification->transaction_status;
-        $paymentType       = $notification->payment_type;
-        $transactionId     = $notification->transaction_id;
-        $fraudStatus       = $notification->fraud_status;
+            $orderId           = $notification->order_id;
+            $transactionStatus = $notification->transaction_status;
+            $paymentType       = $notification->payment_type;
+            $transactionId     = $notification->transaction_id;
+            $fraudStatus       = $notification->fraud_status;
 
-        $order = Order::where('order_number', $orderId)->first();
-        if (!$order) return response()->json(['message' => 'Order not found'], 404);
-
-        $payment = $order->payment;
-
-        if ($transactionStatus === 'capture' || $transactionStatus === 'settlement') {
-            if ($fraudStatus === 'accept' || $fraudStatus === null) {
-                $order->update(['status' => 'paid']);
-                $payment?->update([
-                    'status'         => 'success',
-                    'transaction_id' => $transactionId,
-                    'payment_method' => $paymentType,
-                ]);
-                $this->syncToSales($order, $paymentType);
+            $order = Order::where('order_number', $orderId)->first();
+            if (!$order) {
+                Log::warning('Midtrans callback: order not found', ['order_id' => $orderId]);
+                return response()->json(['message' => 'Order not found'], 404);
             }
-        } elseif (in_array($transactionStatus, ['cancel', 'deny', 'expire'])) {
-            $order->update(['status' => 'cancelled']);
-            $payment?->update(['status' => 'failed']);
-        } elseif ($transactionStatus === 'pending') {
-            $order->update(['status' => 'pending']);
-            $payment?->update(['status' => 'pending']);
+
+            $payment = $order->payment;
+
+            if ($transactionStatus === 'capture' || $transactionStatus === 'settlement') {
+                if ($fraudStatus === 'accept' || $fraudStatus === null) {
+                    $order->update(['status' => 'paid']);
+                    $payment?->update([
+                        'status'         => 'success',
+                        'transaction_id' => $transactionId,
+                        'payment_method' => $paymentType,
+                    ]);
+
+                    // Sync ke POS — dibungkus try-catch agar
+                    // jika gagal tidak menggagalkan response ke Midtrans
+                    try {
+                        $this->syncToSales($order, $paymentType);
+                    } catch (\Throwable $e) {
+                        Log::error('syncToSales gagal', [
+                            'order'   => $orderId,
+                            'message' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            } elseif (in_array($transactionStatus, ['cancel', 'deny', 'expire'])) {
+                $order->update(['status' => 'cancelled']);
+                $payment?->update(['status' => 'failed']);
+            } elseif ($transactionStatus === 'pending') {
+                $order->update(['status' => 'pending']);
+                $payment?->update(['status' => 'pending']);
+            }
+
+        } catch (\Throwable $e) {
+            Log::error('Midtrans callback error', ['message' => $e->getMessage()]);
         }
 
+        // Selalu return 200 ke Midtrans agar tidak di-retry terus
         return response()->json(['message' => 'OK']);
     }
 
     public function syncSale(Request $request)
     {
-        $request->validate([
-            'order_number' => 'required|string',
-        ]);
+        $request->validate(['order_number' => 'required|string']);
 
         $order = Order::where('order_number', $request->order_number)
             ->where('user_id', auth()->id())
@@ -277,9 +281,13 @@ class CheckoutController extends Controller
 
     private function syncToSales(Order $order, ?string $paymentType): void
     {
-        if (Sale::where('invoice_no', $order->order_number)->exists()) return;
+        // Cegah duplikat
+        if (Sale::where('invoice_no', $order->order_number)->exists()) {
+            Log::info('syncToSales: sudah ada, skip', ['order' => $order->order_number]);
+            return;
+        }
 
-        $order->loadMissing('items.product');
+        $order->loadMissing('items');
 
         $paymentMap = [
             'credit_card'   => 'transfer',
@@ -321,15 +329,28 @@ class CheckoutController extends Controller
             ]);
         }
 
-        // Kirim ke POS API — catat transaksi & kurangi stok
-        $this->posApi->createOrder([
-            'grand_total'   => $order->total,
-            'customer_name' => auth()->user()?->name ?? 'Guest',
-            'items'         => $order->items->map(fn($item) => [
-                'id'    => $item->product_id,
-                'qty'   => $item->quantity,
-                'price' => $item->price,
-            ])->toArray(),
+        Log::info('syncToSales: berhasil', [
+            'order'   => $order->order_number,
+            'sale_id' => $sale->id,
         ]);
+
+        // Kurangi stok via POS API — dibungkus try-catch
+        // agar sync ke DB tetap berhasil walau API gagal
+        try {
+            $this->posApi->createOrder([
+                'grand_total'   => $order->total,
+                'customer_name' => 'Toko Online',
+                'items'         => $order->items->map(fn($item) => [
+                    'id'    => $item->product_id,
+                    'qty'   => $item->quantity,
+                    'price' => $item->price,
+                ])->toArray(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('posApi->createOrder gagal (stok tidak dikurangi)', [
+                'order'   => $order->order_number,
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 }
