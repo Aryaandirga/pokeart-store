@@ -139,11 +139,11 @@ const paymentMethodLabel = computed(() => {
                                 <!-- Gambar -->
                                 <div class="w-14 h-14 bg-[#d4eef1] rounded-xl overflow-hidden shrink-0 border border-[#8bc5cd]/40">
                                     <img
-                                        v-if="item.product?.image"
-                                        :src="`/storage/${item.product.image}`"
-                                        :alt="item.product.name"
-                                        class="w-full h-full object-cover"
-                                    />
+    v-if="item.product?.image"
+    :src="item.product.image?.startsWith('http') ? item.product.image : `/storage/${item.product.image}`"
+    :alt="item.product?.name"
+    class="w-full h-full object-cover"
+/>
                                     <div v-else class="w-full h-full flex items-center justify-center text-xl">🃏</div>
                                 </div>
                                 <!-- Info -->
